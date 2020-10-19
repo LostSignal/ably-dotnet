@@ -31,8 +31,6 @@ namespace IO.Ably.Transport
 
         public Uri WebSocketUri { get; }
 
-        public Guid Id { get; } = Guid.NewGuid();
-
         public TransportState State { get; set; } = TransportState.Initialized;
 
         public ITransportListener Listener { get; set; }
@@ -73,7 +71,7 @@ namespace IO.Ably.Transport
                     Logger.Debug("Socket couldn't connect. Error: " + ex.Message);
                 }
 
-                Listener?.OnTransportEvent(Id, TransportState.Closed, ex);
+                Listener?.OnTransportEvent(TransportState.Closed, ex);
             }
         }
 
@@ -169,28 +167,28 @@ namespace IO.Ably.Transport
             switch (state)
             {
                 case MsWebSocketConnection.ConnectionState.Connecting:
-                    Listener?.OnTransportEvent(Id, TransportState.Connecting, error);
+                    Listener?.OnTransportEvent(TransportState.Connecting, error);
                     State = TransportState.Connecting;
                     break;
                 case MsWebSocketConnection.ConnectionState.Connected:
-                    Listener?.OnTransportEvent(Id, TransportState.Connected, error);
+                    Listener?.OnTransportEvent(TransportState.Connected, error);
                     State = TransportState.Connected;
                     break;
                 case MsWebSocketConnection.ConnectionState.Error:
                     if (State != TransportState.Closing && State != TransportState.Closed)
                     {
-                        Listener?.OnTransportEvent(Id, TransportState.Closing, error);
+                        Listener?.OnTransportEvent(TransportState.Closing, error);
                     }
 
                     DisposeSocketConnection();
                     break;
                 case MsWebSocketConnection.ConnectionState.Closing:
                     State = TransportState.Closing;
-                    Listener?.OnTransportEvent(Id, TransportState.Closing, error);
+                    Listener?.OnTransportEvent(TransportState.Closing, error);
                     break;
                 case MsWebSocketConnection.ConnectionState.Closed:
                     State = TransportState.Closed;
-                    Listener?.OnTransportEvent(Id, TransportState.Closed, error);
+                    Listener?.OnTransportEvent(TransportState.Closed, error);
                     DisposeSocketConnection();
                     break;
                 default:

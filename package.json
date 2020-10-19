@@ -1,0 +1,14 @@
+{
+  "name": "com.ably.ably-dotnet",
+  "displayName": "Ably",
+  "version": "1.0.0",
+  "unity": "2019.3",
+  "description": "",
+  "keywords": [
+    "Ably"
+  ],
+  "category": "",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "1.1.2"
+  }
+}

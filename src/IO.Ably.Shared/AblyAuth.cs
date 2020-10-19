@@ -2,7 +2,11 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
+
+using IO.Ably;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -10,9 +14,7 @@ namespace IO.Ably
 {
     internal class AblyAuth : IAblyAuth
     {
-        public Func<TokenDetails, bool, Task> OnAuthUpdated = (token, wait) => Task.CompletedTask; // By default nothing should happen
-
-        private readonly AblyRest _rest;
+        public event EventHandler<AblyAuthUpdatedEventArgs> AuthUpdated;
 
         internal AblyAuth(ClientOptions options, AblyRest rest)
         {
@@ -41,7 +43,14 @@ namespace IO.Ably
 
         internal AuthOptions CurrentAuthOptions { get; set; }
 
+        private readonly AblyRest _rest;
+
         public TokenDetails CurrentToken { get; set; }
+
+        public void ExpireCurrentToken()
+        {
+            CurrentToken?.Expire();
+        }
 
         internal string ConnectionClientId { get; set; }
 
@@ -50,20 +59,17 @@ namespace IO.Ably
             ?? CurrentTokenParams?.ClientId
             ?? Options.GetClientId();
 
-        public bool TokenRenewable => TokenCreatedExternally || HasApiKey;
+        private bool HasTokenId => Options.Token.IsNotEmpty();
+
+        public bool TokenRenewable => TokenCreatedExternally || (HasApiKey && HasTokenId == false);
 
         private bool TokenCreatedExternally => Options.AuthUrl.IsNotEmpty() || Options.AuthCallback != null;
 
         private bool HasApiKey => Options.Key.IsNotEmpty();
 
-        public void ExpireCurrentToken()
-        {
-            CurrentToken?.Expire();
-        }
-
         internal void Initialise()
         {
-            AuthMethod = CheckAndGetAuthMethod();
+            SetAuthMethod();
 
             CurrentAuthOptions = Options;
             CurrentTokenParams = Options.DefaultTokenParams;
@@ -97,44 +103,16 @@ namespace IO.Ably
             ServerTimeOffset = () => Now() - diff;
         }
 
-        private AuthMethod CheckAndGetAuthMethod()
+        private void SetAuthMethod()
         {
-            AuthMethod method;
             if (Options.UseTokenAuth.HasValue)
             {
-                method = Options.UseTokenAuth.Value ? AuthMethod.Token : AuthMethod.Basic;
+                // ASK: Should I throw an error if a particular auth is not possible
+                AuthMethod = Options.UseTokenAuth.Value ? AuthMethod.Token : AuthMethod.Basic;
             }
             else
             {
-                method = IsTokenAuth() ? AuthMethod.Token : AuthMethod.Basic;
-            }
-
-            if (method == AuthMethod.Basic && Options.Key.IsEmpty())
-            {
-                throw new AblyException(new ErrorInfo(
-                    "No authentication options provided; need one of: key, authUrl, or authCallback (or for testing only, token or tokenDetails)",
-                    40106,
-                    HttpStatusCode.NotFound));
-            }
-
-            if (method == AuthMethod.Token && TokenRenewable == false)
-            {
-                Logger.Error("Warning: library initialized with a token literal without any way to renew the token when it expires (no authUrl, authCallback, or key). See https://help.ably.io/error/40171 for help");
-            }
-
-            return method;
-
-            bool IsTokenAuth()
-            {
-                if (Options.AuthUrl.IsNotEmpty()
-                    || Options.AuthCallback != null
-                    || Options.Token.IsNotEmpty()
-                    || Options.TokenDetails != null)
-                {
-                    return true;
-                }
-
-                return false;
+                AuthMethod = Options.Method;
             }
         }
 
@@ -178,27 +156,16 @@ namespace IO.Ably
                 throw new AblyException("AuthMethod is set to Auth so there is no current valid token.");
             }
 
+
+
             if (CurrentToken.IsValidToken(ServerTimeOffset() ?? Now()))
             {
                 return CurrentToken;
             }
 
-            return await RenewToken();
-        }
-
-        /// <summary>
-        /// Renews the current token and calls OnAuthUpdated without blocking until the connection is reestablished.
-        /// </summary>
-        /// <returns>new token if successful.</returns>
-        /// <exception cref="AblyException">Throws an exception if the new token is not valid.</exception>
-        internal async Task<TokenDetails> RenewToken()
-        {
             if (TokenRenewable)
             {
-                var token = await RequestTokenAsync();
-
-                await OnAuthUpdated(token, false);
-
+                var token = await AuthorizeAsync();
                 var now = ServerTimeOffset() ?? Now();
                 if (token.IsValidToken(now))
                 {
@@ -211,10 +178,6 @@ namespace IO.Ably
                     throw new AblyException("Token has expired: " + CurrentToken, 40142, HttpStatusCode.Unauthorized);
                 }
             }
-            else
-            {
-                throw new AblyException(ErrorInfo.NonRenewableToken);
-            }
 
             return null;
         }
@@ -223,10 +186,10 @@ namespace IO.Ably
         /// Makes a token request. This will make a token request now, even if the library already
         /// has a valid token. It would typically be used to issue tokens for use by other clients.
         /// </summary>
-        /// <param name="tokenParams">The <see cref="TokenRequest"/> data used for the token.</param>
-        /// <param name="authOptions">Extra <see cref="AuthOptions"/> used for creating a token.</param>
-        /// <returns>A valid ably token.</returns>
-        /// <exception cref="AblyException">something went wrong.</exception>
+        /// <param name="tokenParams">The <see cref="TokenRequest"/> data used for the token</param>
+        /// <param name="authOptions">Extra <see cref="AuthOptions"/> used for creating a token </param>
+        /// <returns>A valid ably token</returns>
+        /// <exception cref="AblyException"></exception>
         public virtual async Task<TokenDetails> RequestTokenAsync(TokenParams tokenParams = null, AuthOptions authOptions = null)
         {
             EnsureSecureConnection();
@@ -300,7 +263,7 @@ namespace IO.Ably
             }
             else if (authOptions.AuthUrl.IsNotEmpty())
             {
-                var responseText = string.Empty;
+                var responseText = String.Empty;
                 try
                 {
                     var response = await CallAuthUrl(authOptions, tokenParams);
@@ -327,14 +290,13 @@ namespace IO.Ably
                 }
                 catch (AblyException ex)
                 {
-                    var statusCode = ex.ErrorInfo.StatusCode == HttpStatusCode.Forbidden
-                                        ? ex.ErrorInfo.StatusCode
-                                        : HttpStatusCode.Unauthorized;
                     throw new AblyException(
                         new ErrorInfo(
                             "Error calling Auth URL, token request failed. See the InnerException property for details of the underlying exception.",
                             80019,
-                            statusCode,
+                            ex.ErrorInfo.StatusCode == HttpStatusCode.Forbidden
+                                ? ex.ErrorInfo.StatusCode
+                                : HttpStatusCode.Unauthorized,
                             ex),
                         ex);
                 }
@@ -377,7 +339,7 @@ namespace IO.Ably
                 throw new AblyException("Invalid token response returned", 80019);
             }
 
-            // TODO: Remove the Now function from the token
+            //TODO: Very ugly stuff
             result.Now = Now;
 
             return result;
@@ -397,9 +359,7 @@ namespace IO.Ably
             }
         }
 
-#pragma warning disable SA1204 // Static elements should appear before instance elements
         private static TokenRequest GetTokenRequest(object callbackResult)
-#pragma warning restore SA1204 // Static elements should appear before instance elements
         {
             if (callbackResult is TokenRequest)
             {
@@ -420,6 +380,19 @@ namespace IO.Ably
             {
                 throw new AblyException(new ErrorInfo($"AuthCallback returned a string which can't be converted to TokenRequest. ({callbackResult})."), e);
             }
+        }
+
+        private TokenParams MergeTokenParamsWithDefaults(TokenParams tokenParams)
+        {
+            TokenParams @params = tokenParams?.Merge(CurrentTokenParams);
+
+            if (@params == null)
+            {
+                @params = CurrentTokenParams ?? TokenParams.WithDefaultsApplied();
+                @params.ClientId = ClientId; // Ensure the correct clientId is supplied
+            }
+
+            return @params;
         }
 
         private async Task<AblyResponse> CallAuthUrl(AuthOptions mergedOptions, TokenParams @params)
@@ -468,10 +441,10 @@ namespace IO.Ably
         /// Authorisation will use the parameters supplied on construction except
         /// where overridden with the options supplied in the call.
         /// </summary>
-        /// <param name="tokenParams"><see cref="TokenParams"/> custom parameter. Pass null and default token request options will be generated used the options passed when creating the client.</param>
+        /// <param name="tokenParams"><see cref="TokenParams"/> custom parameter. Pass null and default token request options will be generated used the options passed when creating the client</param>
         /// <param name="authOptions"><see cref="AuthOptions"/> custom options.</param>
-        /// <returns>Returns a valid token.</returns>
-        /// <exception cref="AblyException">Throws an ably exception representing the server response.</exception>
+        /// <returns>Returns a valid token</returns>
+        /// <exception cref="AblyException">Throws an ably exception representing the server response</exception>
         public async Task<TokenDetails> AuthorizeAsync(TokenParams tokenParams = null, AuthOptions authOptions = null)
         {
             // RSA10j - TokenParams and AuthOptions supersede any previously client library configured TokenParams and AuthOptions
@@ -483,11 +456,39 @@ namespace IO.Ably
 
             CurrentToken = await RequestTokenAsync(tokenParams, authOptions);
             AuthMethod = AuthMethod.Token;
+            var eventArgs = new AblyAuthUpdatedEventArgs(CurrentToken);
+            AuthUpdated?.Invoke(this, eventArgs);
 
-            // RTC8a3 - wait for reconnect if it's the Realtime client
-            await OnAuthUpdated(CurrentToken, true);
+            // RTC8a3
+            await AuthorizeCompleted(eventArgs);
 
             return CurrentToken;
+        }
+
+        internal async Task<bool> AuthorizeCompleted(AblyAuthUpdatedEventArgs args)
+        {
+            if (AuthUpdated == null)
+            {
+                return true;
+            }
+
+            bool? completed = null;
+
+            void OnTimerElapsed()
+            {
+                if (args?.CompletedTask != null && completed.HasValue == false)
+                {
+                    args.CompletedTask.TrySetException(
+                        new AblyException($"Timeout waiting for Authorize to complete. A CONNECTED or ERROR ProtocolMessage was expected before the timeout ({Options.RealtimeRequestTimeout.TotalMilliseconds}ms) elapsed.", 40140));
+                }
+            }
+
+            var timer = new Timer(state => OnTimerElapsed(), null, (int)Options.RealtimeRequestTimeout.TotalMilliseconds, Timeout.Infinite);
+
+            completed = await args.CompletedTask.Task;
+            timer.Dispose();
+
+            return completed.Value;
         }
 
         [Obsolete("This method will be removed in the future, please replace with a call to AuthorizeAsync")]
@@ -518,7 +519,7 @@ namespace IO.Ably
         /// </summary>
         /// <param name="tokenParams"><see cref="TokenParams"/>. If null a token request is generated from options passed when the client was created.</param>
         /// <param name="authOptions"><see cref="AuthOptions"/>. If null the default AuthOptions are used.</param>
-        /// <returns>signed token request.</returns>
+        /// <returns></returns>
         public async Task<string> CreateTokenRequestAsync(TokenParams tokenParams, AuthOptions authOptions)
         {
             authOptions = authOptions ?? CurrentAuthOptions ?? Options;

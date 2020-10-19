@@ -2,9 +2,7 @@
 
 namespace IO.Ably.Realtime
 {
-    /// <summary>
-    /// A series of connection states.
-    /// </summary>
+    /// <summary>A series of connection states.</summary>
     public enum ConnectionState
     {
         /// <summary>
@@ -45,8 +43,7 @@ namespace IO.Ably.Realtime
         Suspended = 4,
 
         /// <summary>
-        /// A call to Close has been made. The connection will temporarily move to Closing until a CLOSED message
-        /// is received from the server or a timeout has been reached.
+        ///
         /// </summary>
         Closing = 5,
 
@@ -71,7 +68,7 @@ namespace IO.Ably.Realtime
         Failed = 7
     }
 
-    internal static class ConnectionStateExtensions
+    public static class ConnectionStateExtensions
     {
         public static ConnectionEvent ToConnectionEvent(this ConnectionState state)
         {

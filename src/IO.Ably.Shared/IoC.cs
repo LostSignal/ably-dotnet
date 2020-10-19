@@ -37,8 +37,6 @@ namespace IO.Ably
 
         public static ITransportFactory TransportFactory => Platform?.TransportFactory ?? new MsWebSocketTransport.TransportFactory();
 
-        public static void RegisterOsNetworkStateChanged() => Platform.RegisterOsNetworkStateChanged();
-
         public static string PlatformId => Platform?.PlatformId ?? string.Empty;
     }
 }

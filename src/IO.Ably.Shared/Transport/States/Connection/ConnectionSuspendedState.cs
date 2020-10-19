@@ -1,15 +1,15 @@
 ﻿using System.Threading.Tasks;
 using IO.Ably;
-using IO.Ably.Realtime;
-using IO.Ably.Realtime.Workflow;
 
 namespace IO.Ably.Transport.States.Connection
 {
+    using IO.Ably.Realtime;
+
     internal class ConnectionSuspendedState : ConnectionStateBase
     {
         private readonly ICountdownTimer _timer;
 
-        public override ErrorInfo DefaultErrorInfo => ErrorInfo.ReasonSuspended;
+        public new ErrorInfo DefaultErrorInfo => ErrorInfo.ReasonSuspended;
 
         public ConnectionSuspendedState(IConnectionContext context, ILogger logger)
             : this(context, null, new CountdownTimer("Suspended state timer", logger), logger)
@@ -29,17 +29,17 @@ namespace IO.Ably.Transport.States.Connection
             RetryIn = context.SuspendRetryTimeout;
         }
 
-        public override ConnectionState State => ConnectionState.Suspended;
+        public override ConnectionState State => Realtime.ConnectionState.Suspended;
 
-        public override RealtimeCommand Connect()
+        public override void Connect()
         {
-            return SetConnectingStateCommand.Create().TriggeredBy("SuspendedState.Connect()");
+            Context.SetState(new ConnectionConnectingState(Context, Logger));
         }
 
         public override void Close()
         {
             _timer.Abort();
-            Context.ExecuteCommand(SetClosedStateCommand.Create().TriggeredBy("SuspendedState.Close()"));
+            Context.SetState(new ConnectionClosedState(Context, Logger));
         }
 
         public override void AbortTimer()
@@ -47,17 +47,22 @@ namespace IO.Ably.Transport.States.Connection
             _timer.Abort();
         }
 
-        public override void StartTimer()
+        public override Task OnAttachToContext()
         {
+            // This is a terminal state. Clear the transport.
+            Context.ClearAckQueueAndFailMessages(ErrorInfo.ReasonSuspended);
+
             if (RetryIn.HasValue)
             {
                 _timer.Start(RetryIn.Value, OnTimeOut);
             }
+
+            return TaskConstants.BooleanTrue;
         }
 
         private void OnTimeOut()
         {
-            Context.ExecuteCommand(SetConnectingStateCommand.Create().TriggeredBy("SuspendedState.OnTimeOut()"));
+            Context.Execute(() => Context.SetState(new ConnectionConnectingState(Context, Logger)));
         }
     }
 }

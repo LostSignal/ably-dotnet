@@ -1,13 +1,16 @@
-﻿using IO.Ably.Realtime;
-using IO.Ably.Realtime.Workflow;
+﻿using System.Threading.Tasks;
+using IO.Ably;
+using IO.Ably.Types;
 
 namespace IO.Ably.Transport.States.Connection
 {
+    using IO.Ably.Realtime;
+
     internal class ConnectionDisconnectedState : ConnectionStateBase
     {
         private readonly ICountdownTimer _timer;
 
-        public override ErrorInfo DefaultErrorInfo => ErrorInfo.ReasonDisconnected;
+        public new ErrorInfo DefaultErrorInfo => ErrorInfo.ReasonDisconnected;
 
         public ConnectionDisconnectedState(IConnectionContext context, ILogger logger)
             : this(context, null, new CountdownTimer("Disconnected state timer", logger), logger)
@@ -29,19 +32,19 @@ namespace IO.Ably.Transport.States.Connection
 
         public bool RetryInstantly { get; set; }
 
-        public override ConnectionState State => ConnectionState.Disconnected;
+        public override ConnectionState State => Realtime.ConnectionState.Disconnected;
 
         public override bool CanQueue => true;
 
-        public override RealtimeCommand Connect()
+        public override void Connect()
         {
-           return SetConnectingStateCommand.Create().TriggeredBy("DisconnectedState.Connect()");
+            Context.SetState(new ConnectionConnectingState(Context, Logger));
         }
 
         public override void Close()
         {
             AbortTimer();
-            Context.ExecuteCommand(SetClosedStateCommand.Create().TriggeredBy("DisconnectedState.Close()"));
+            Context.SetState(new ConnectionClosedState(Context, Logger));
         }
 
         public override void AbortTimer()
@@ -49,17 +52,30 @@ namespace IO.Ably.Transport.States.Connection
             _timer.Abort();
         }
 
-        public override void StartTimer()
+        public override Task OnAttachToContext()
         {
-            if (RetryInstantly == false)
+            Context.DestroyTransport();
+
+            if (Logger.IsDebug)
+            {
+                Logger.Debug("RetryInstantly set to '" + RetryInstantly + "'");
+            }
+
+            if (RetryInstantly)
+            {
+                Context.SetState(new ConnectionConnectingState(Context, Logger));
+            }
+            else
             {
                 _timer.Start(Context.RetryTimeout, OnTimeOut);
             }
+
+            return TaskConstants.BooleanTrue;
         }
 
         private void OnTimeOut()
         {
-            Context.ExecuteCommand(SetConnectingStateCommand.Create().TriggeredBy("DisconnectedState.OnTimeOut()"));
+            Context.Execute(() => Context.SetState(new ConnectionConnectingState(Context, Logger)));
         }
     }
 }

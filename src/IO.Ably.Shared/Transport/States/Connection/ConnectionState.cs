@@ -2,12 +2,12 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using IO.Ably;
-using IO.Ably.Realtime;
-using IO.Ably.Realtime.Workflow;
 using IO.Ably.Types;
 
 namespace IO.Ably.Transport.States.Connection
 {
+    using IO.Ably.Realtime;
+
     [DebuggerDisplay("{State}")]
     internal abstract class ConnectionStateBase
     {
@@ -33,30 +33,34 @@ namespace IO.Ably.Transport.States.Connection
 
         public virtual bool CanSend => false;
 
-        public virtual bool IsUpdate { get; set; }
+        public virtual bool IsUpdate { get; protected set; }
 
-        public virtual ErrorInfo DefaultErrorInfo => ErrorInfo.ReasonUnknown;
+        public ErrorInfo DefaultErrorInfo => ErrorInfo.ReasonUnknown;
 
-        public virtual RealtimeCommand Connect()
+        public virtual void Connect()
         {
-            return EmptyCommand.Instance;
         }
 
         public virtual void Close()
         {
         }
 
-        public virtual Task<bool> OnMessageReceived(ProtocolMessage message, RealtimeState state)
+        public virtual Task<bool> OnMessageReceived(ProtocolMessage message)
         {
-            return Task.FromResult(false);
+            return TaskConstants.BooleanFalse;
         }
 
         public virtual void AbortTimer()
         {
         }
 
-        public virtual void StartTimer()
+        public virtual void BeforeTransition()
         {
+        }
+
+        public virtual Task OnAttachToContext()
+        {
+            return TaskConstants.BooleanTrue;
         }
 
         public override string ToString()

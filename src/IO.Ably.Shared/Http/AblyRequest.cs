@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using IO.Ably.Rest;
 
 namespace IO.Ably
 {
@@ -22,8 +23,6 @@ namespace IO.Ably
         }
 
         public string Url { get; set; }
-
-        public bool SkipRetry { get; set; }
 
         public HttpMethod Method { get; private set; }
 
@@ -50,9 +49,9 @@ namespace IO.Ably
         public bool SkipAuthentication { get; set; }
 
         /// <summary>
-        /// Tell the HTTP client to not raise an exception when a non 2XX status is returned.
+        /// Tell the HTTP client to not not raise an exception when a non 2XX status is returned.
         /// Set to 'true' when 4XX or 5XX HTTP status codes should not cause an exception.
-        /// Add to support AblyRest.Request(...).
+        /// Add to support <see cref="AblyRest.Request"/>.
         /// </summary>
         public bool NoExceptionOnHttpError { get; set; } = false;
 

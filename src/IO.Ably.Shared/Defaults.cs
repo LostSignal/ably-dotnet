@@ -49,16 +49,9 @@ namespace IO.Ably
 
         // Buffer in seconds before a token is considered unusable
         public const int TokenExpireBufferInSeconds = 15;
-        public const int HttpMaxRetryCount = 3;
-        public static readonly TimeSpan ChannelRetryTimeout = TimeSpan.FromSeconds(15);
-        public static readonly TimeSpan HttpMaxRetryDuration = TimeSpan.FromSeconds(15);
-        public static readonly TimeSpan MaxHttpRequestTimeout = TimeSpan.FromSeconds(10);
-        public static readonly TimeSpan MaxHttpOpenTimeout = TimeSpan.FromSeconds(4);
         public static readonly TimeSpan DefaultRealtimeTimeout = TimeSpan.FromSeconds(10);
         public static readonly TimeSpan DisconnectedRetryTimeout = TimeSpan.FromSeconds(15);
-        public static readonly TimeSpan SuspendedRetryTimeout = TimeSpan.FromSeconds(30);
         public static readonly TimeSpan ConnectionStateTtl = TimeSpan.FromSeconds(60);
-        public static readonly TimeSpan FallbackRetryTimeout = TimeSpan.FromMinutes(10); // https://docs.ably.io/client-lib-development-guide/features/#TO3l10
 
         public static readonly ITransportFactory WebSocketTransportFactory = IoC.TransportFactory;
 
@@ -75,11 +68,8 @@ namespace IO.Ably
 
 #if MSGPACK
         internal const Protocol DefaultProtocol = IO.Ably.Protocol.MsgPack;
-        internal const bool MsgPackEnabled = true;
 #else
         internal const Protocol Protocol = IO.Ably.Protocol.Json;
-        internal const bool MsgPackEnabled = false;
-
 #endif
 
         static Defaults()

@@ -1,44 +1,24 @@
 # ably-dotnet
 
 [![NuGet version](https://badge.fury.io/nu/ably.io.svg)](https://badge.fury.io/nu/ably.io)
-[![NetFramework build status](https://dev.azure.com/vayadigital/Ably%20Realtime/_apis/build/status/ably.ably-dotnet?branchName=master)](https://dev.azure.com/vayadigital/Ably%20Realtime/_build/latest?definitionId=1&branchName=master)
-[![NetStandard build status](https://dev.azure.com/vayadigital/Ably%20Realtime/_apis/build/status/ably.ably-dotnet%20(1)?branchName=master)](https://dev.azure.com/vayadigital/Ably%20Realtime/_build/latest?definitionId=2&branchName=master)
 
 A .NET client library for [www.ably.io](https://www.ably.io), the realtime messaging service. This library currently targets the [Ably 1.1-beta client library specification](https://www.ably.io/documentation/client-lib-development-guide/features/). You can jump to the '[Known Limitations](#known-limitations)' section to see the features this client library does not yet support or or [view our client library SDKs feature support matrix](https://www.ably.io/download/sdk-feature-support-matrix) to see the list of all the available features.
 
-## Xamarin and VS 2017
-
-There is an open issue for versions 1.1.14 and above when working with Xamarim Projects and Visual Studio 2017. Ably (1.1.14) was compiled using MsBuild that came with VS 2019 which causes an issue when a Xamarin app is compiled using VS 2017. More information can be found in this [Stackoverflow post](https://stackoverflow.com/questions/58032635/updating-nuget-caused-exception-unhandled-system-typeloadexception/58064929#58064929). 
-Until we resolve the issue you can either use version 1.1.13 or update to using Visual Studio 2019. Please create an support issue if this is causing problems. 
-
-
-## Significant changes in 1.1.15
-
-Version 1.1.15 has seen a significant rewrite of the library internals which was needed to make the library safer and provide a good basis for implementing the rest of the spec. 
-Here is a list of the significant changes. You can find a full list in the release notes.
-
-1. [Breaking]Presence and IRealtimeChannel no longer implement the IDisposable interface. They don't hold on to any unmanaged recourses and there was no need to expose the Dispose function. 
-2. [Breaking]ITransport has acquired an Id Property and ITransportListener.OnTransportEvent has an Id parameter. This is needed because we need to distinguish events raised different Transport instances. Sometimes the Closed event doesn't get processed until another transport has already been instantiated. 
-3. `ClientOptions.CaptureCurrentSynchronizationContext` has been deprecated and defaulted to `false`. It will be removed in future versions. You need to make sure that you don't directly update UI elements if you are building a WPF or Xamarin.Forms application from Ably handlers. If you still require the functionality please set it back to `true` and open an Ably Support ticket that you need the functionality. The main reason to disable this feature is that the library should not assume on which thread updates should be posted and that needs to be handled by the developer.
-4. IRealtimeClient implements IDisposable - If you want to clean up after the library you can now safely call `Dispose()`. Please note that you can no longer use this instance and have to create a new one.
-5. Logging has been greatly improved. We've removed a lot of verbose messages that brought little value. There is a helpful debug method called `.GetCurrentState()` on the realtime client that will dump the whole library's state as a json string. This will be helpful to include in the support tickets.
-
-
 ## Supported platforms
 
-* .NET 4.6.2+ &ast;
+* .NET 4.6+ &ast;
 * .NET Core &ast;&ast;
-* .NET Standard 2.0+
+* .NET Standard 1.4+
 * Mono 5.4+
 * UWP
 * [Xamarin.Android 8.0+](https://developer.xamarin.com/releases/android/xamarin.android_8/xamarin.android_8.0/)
 * [Xamarin.iOS 11.4+](https://developer.xamarin.com/releases/ios/xamarin.ios_11/xamarin.ios_11.4/)
 
 &ast; To target Windows 7 (with .Net 4.6) a custom [ITransportFactory](https://github.com/ably/ably-dotnet/blob/master/src/IO.Ably.Shared/Transport/ITransport.cs) will need to be implemented in your project that uses an alternate Web Socket library. 
-This is because [System.Net.WebSockets]('https://msdn.microsoft.com/en-us/library/system.net.websockets(v=vs.110).aspx') is not fully implemented on Windows 7.
+This is because [System.Net.WebSockets]('https://msdn.microsoft.com/en-us/library/system.net.websockets(v=vs.110).aspx') is not fully implementented on Windows 7.
 See [this repository](https://github.com/ably-forks/ably-dotnet-alternative-transports) for a working example using the [websocket4net library](https://github.com/kerryjiang/WebSocket4Net).
 
-&ast;&ast; We regression-test the library against .NET Core 2 and .Net Framework 4.6.2. If you find any compatibility issues, please do [raise an issue](https://github.com/ably/ably-dotnet/issues) in this repository or contact Ably customer support for advice. Any known runtime incompatibilities can be found [here](https://github.com/ably/ably-dotnet/issues?q=is%3Aissue+is%3Aopen+label%3A%22compatibility%22).
+&ast;&ast; We regression-test the library against .NET Core 2 but it is designed to be compatible with all versions of .NET Core (and any other runtime implementation that is compatible with .NET Standard 1.4 or greater). If you find any compatibility issues, please do [raise an issue](https://github.com/ably/ably-dotnet/issues) in this repository or contact Ably customer support for advice. Any known runtime incompatibilities can be found [here](https://github.com/ably/ably-dotnet/issues?q=is%3Aissue+is%3Aopen+label%3A%22compatibility%22).
 
 ### Partial platform support
 
@@ -50,19 +30,20 @@ Unity support is currently in beta. See below for details on why it's considered
 
 Shortcomings & considerations:
 
-* This library is only tested manually on Unity for Windows. We do not yet have automated tests running on the Unity platform.
-* Installation requires developers to import a custom unity packages that includes all of Ably's dependencies.
+* This library is only tested manually on Unity. We do not yet have automated tests running on the Unity platform.
+* Installation requires developers to manually set up the library
 
 Unity Requirements:
 
 - Unity 2018.2.0 or newer
 - The following Unity Player settings must be applied:
-  - Scripting Runtime Version should be '.NET 4.x Equivalent'
+  - Scripting Runtime Version should be '.NET 4.x Equivelant'
   - Api Compatibility Level should be '.NET Standard 2.0'
+- Json.NET 9.0.1 or newer. If you are targetting macOS or iOS (or other platforms that require the IL2CPP scripting backend) then a version of Json.NET that has been modified to work with an AOT compiler is required, we have had success with [Json.Net.Unity3D](https://github.com/SaladLab/Json.Net.Unity3D)
 
-Please download the latest unity package from the [github releases page](https://github.com/ably/ably-dotnet/releases). All releases from 1.1.16 will include a unity package as well.
-
-Implementation note for Unity. The library creates a number of threads and all callbacks are executed on non UI threads. This makes it difficult to update UI elements inside any callback executed by Ably. To make it easier we still support capturing the SynchronizationContext and synchronizing callbacks to the UI thread. This is OK for smaller projects and can be enabled using the following Client option `CaptureCurrentSynchronizationContext`. Even thought the setting is deprecated it will not be removed.
+The .NET Standard build of ably-dotnet (IO.Ably.dll) needs to be added the asset folder of your Unity project.
+As Unity does not support Nuget out of the box we currently recommend building ably-dotnet from source, although it should be possible to [extract the required assembly from the nuget package](https://articles.runtings.co.uk/2014/09/easily-extracting-nupkg-files-with.html) or use a [3rd party Nuget extension for Unity](https://assetstore.unity.com/packages/tools/utilities/nuget-for-unity-104640), but those options are beyond the scope of this document. To build from source clone this repository and build the IO.Ably.NETStandard20 project, this can be done from Visual Studio by opening the IO.Ably.sln file or via the command line. To build via the comandline `cd` to `ably-dotnet/src/IO.Ably.NETStandard20/` and run `dotnet build`, the build output can then be found in `ably-dotnet/src/IO.Ably.NETStandard20/bin/Release/netstandard2.0`, navigate there to obtain the required `IO.Ably.dll`.
+Finally, install a compatible version of Json.NET into your Unity projects asset folder (e.g. [Json.Net.Unity3D](https://github.com/SaladLab/Json.Net.Unity3D)).
 
 ### Unsupported platforms
 
@@ -395,7 +376,7 @@ See [the nuget page](http://nuget.org/packages/ably.io/) for specifics.
 
 ## Support, feedback and troubleshooting
 
-Please visit http://support.ably.io/ for access to our knowledge-base and to ask for any assistance.
+Please visit http://support.ably.io/ for access to our knowledgebase and to ask for any assistance.
 
 You can also view the [community reported Github issues](https://github.com/ably/ably-dotnet/issues).
 
@@ -410,12 +391,13 @@ You can also view the [community reported Github issues](https://github.com/ably
 
 ## Building and Packaging
 
-The build scripts are written partly using `fake' and partly in powershell using PSake and need to be run on Windows with Visual Studio 2017 installed. Additionally nuget.exe and GitVersion.exe are required, these can be installed via [chocolatey](https://chocolatey.org)
+The build scripts are written in powershell using PSake and need to be run on Windows with Visual Studio 2017 installed. Additionally nuget.exe and GitVersion.exe are required, these can be installed via [chocolatey](https://chocolatey.org)
 
     choco install nuget.commandline
+    choco install gitversion.portable
 
-Running `.\build.cmd` will start the build process and run the tests. By default it runs the NetFramework tests. 
-To run the Netcore build and tests you can run `.\build.cmd Test.NetStandard`
+Running `.\build.ps1` will start the build process and run the tests. 
+Running `package.ps1` will run the build script and create a nuget package.
 
 ## Working from source
 
@@ -432,20 +414,19 @@ If you want to incorporate ably-dotnet into your project from source (perhaps to
     2. Right click Dependencies and select Add Reference
     3. In the dialogue that opens you should see a list of the projects in your solution. Check the box next to IO.Ably.NETFramework (or whatever version you are trying to use) and click OK.
 
-## Spec
-
-The dotnet library follows the Ably [`Client Library development guide`](https://docs.ably.io/client-lib-development-guide/features/). To ensure it is easier to look up whether a spec item has been implemented or not; we add a Trait attribute to tests that implement parts of the spec. The convertion is to add `[Trait("spec", "spec tag")]` to unit tests. 
-
-To get a list of all spec items that appear in the tests you can run a script located in the tools directory. 
-You need to have .net core 3.0 installed. It works on Mac, Linux and Windows. Run `dotnet fsi tools/list-test-categories.fsx`. It will produce a `results.csv` file which will include all spec items, which file it was found and on what line.
-
-
 ## Release process
 
 This library uses [semantic versioning](http://semver.org/). For each release, the following needs to be done:
 
+* Update the version number in [GitVersion.yml](./GetVersion.yml)&dagger; and commit the change.
 * Run [`github_changelog_generator`](https://github.com/skywinder/Github-Changelog-Generator) to automate the update of the [CHANGELOG](./CHANGELOG.md). Once the `CHANGELOG` update has completed, manually change the `Unreleased` heading and link with the current version number such as `v1.0.0`. Also ensure that the `Full Changelog` link points to the new version tag instead of the `HEAD`. Commit this change.
 * Add a tag for the version and push to origin such as `git tag 1.0.0 && git push origin 1.0.0`. For beta versions the version string should be `Maj.Min.Patch-betaN`, e.g `1.0.0-beta1`
 * Visit [https://github.com/ably/ably-dotnet/tags](https://github.com/ably/ably-dotnet/tags) and `Add release notes` for the release including links to the changelog entry.
-* Run `package.cmd` to create the nuget package. 
+* Run `package.ps1` to create the nuget package. 
 * Run `nuget push ably.io.*.nupkg -Source https://www.nuget.org/api/v2/package` (a private nuget API Key is required to complete this step, more information on publishing nuget packages can be found [here](https://docs.microsoft.com/en-us/nuget/quickstart/create-and-publish-a-package))
+
+&dagger; GitVersion is required, see the preceeding section 'Building and Packaging' for more information.
+
+## License
+
+Copyright (c) 2016 Ably Real-time Ltd, Licensed under the Apache License, Version 2.0.  Refer to [LICENSE](LICENSE) for the license terms.

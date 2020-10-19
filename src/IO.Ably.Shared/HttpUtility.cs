@@ -1,16 +1,13 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using kvp = System.Collections.Generic.KeyValuePair<string, string>;
 
 namespace IO.Ably
 {
-#pragma warning disable CS1591 // Only used internally
-    /// <summary>
-    /// Provides Http helper methods.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1600:Elements should be documented", Justification = "Only used internally")]
+    using kvp = KeyValuePair<string, string>;
+
     public sealed class HttpUtility
     {
         public static HttpValueCollection ParseQueryString(string query)
@@ -29,26 +26,15 @@ namespace IO.Ably
         }
     }
 
-    /// <summary>
-    /// Class to a querystring as a list of name / value pairs.
-    /// </summary>
     public class HttpValueCollection
     {
-        private readonly List<kvp> _data = new List<kvp>();
-
-        /// <summary>
-        /// All the keys.
-        /// </summary>
         public IEnumerable<string> AllKeys
         {
             get { return _data.Select(i => i.Key); }
         }
 
-        /// <summary>
-        /// Returns the value for a specific name.
-        /// </summary>
-        /// <param name="name">name of the requested value.</param>
-        /// <returns>the value for the requested name or null if it doesn't exist.</returns>
+        private readonly List<kvp> _data = new List<kvp>();
+
         public string this[string name]
         {
             get
@@ -70,11 +56,6 @@ namespace IO.Ably
             }
         }
 
-        /// <summary>
-        /// Returns a list of all the values for a specific name.
-        /// </summary>
-        /// <param name="name">name of the requested value(s).</param>
-        /// <returns>the value(s) as an array.</returns>
         public string[] GetValues(string name)
         {
             string[] res = _data.Where(i => i.Key == name).Select(i => i.Value).ToArray();
@@ -86,33 +67,16 @@ namespace IO.Ably
             return res;
         }
 
-        /// <summary>
-        /// Adds a name / value pair.
-        /// </summary>
-        /// <param name="name">name of value.</param>
-        /// <param name="value">value.</param>
         public void Add(string name, string value)
         {
             _data.Add(new kvp(name, value));
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="HttpValueCollection"/> class.
-        /// </summary>
         public HttpValueCollection() { }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="HttpValueCollection"/> class.
-        /// </summary>
-        /// <param name="query">initialise with a query string.</param>
         public HttpValueCollection(string query)
             : this(query, true) { }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="HttpValueCollection"/> class.
-        /// </summary>
-        /// <param name="query">initialise with a query string.</param>
-        /// <param name="urlencoded">is the query url encoded.</param>
         public HttpValueCollection(string query, bool urlencoded)
         {
             if (!string.IsNullOrEmpty(query))
@@ -148,8 +112,7 @@ namespace IO.Ably
                 }
 
                 string str = null;
-                string str2;
-
+                string str2 = null;
                 if (num4 >= 0)
                 {
                     str = query.Substring(startIndex, num4 - startIndex);
@@ -180,7 +143,6 @@ namespace IO.Ably
         /// For internal testing only.
         /// This method does not URL encode and should be considered unsafe for general use.
         /// </summary>
-        /// <returns>returs query string value based on the contents of the object.</returns>
         internal string ToQueryString()
         {
             var n = _data.Count;
@@ -236,5 +198,4 @@ namespace IO.Ably
             return s.ToString();
         }
     }
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }

@@ -156,7 +156,7 @@ namespace IO.Ably.MessageEncoders
             }
 
             byte[] result;
-            if (_protocol == Protocol.Json || !Defaults.MsgPackEnabled)
+            if (_protocol == Protocol.Json || !Config.MsgPackEnabled)
             {
                 result = JsonHelper.Serialize(request.PostData).GetBytes();
             }
@@ -257,6 +257,12 @@ namespace IO.Ably.MessageEncoders
             return result;
         }
 
+        /// <summary>Parse paginated response using specified parser function.</summary>
+        /// <typeparam name="T">Item type</typeparam>
+        /// <param name="request"></param>
+        /// <param name="response"></param>
+        /// <param name="funcParse">Function to parse HTTP response into a sequence of items.</param>
+        /// <returns></returns>
         internal static PaginatedResult<T> Paginated<T>(AblyRequest request, AblyResponse response, Func<PaginatedRequestParams, Task<PaginatedResult<T>>> executeDataQueryRequest) where T : class
         {
             PaginatedResult<T> res = new PaginatedResult<T>(response, GetLimit(request), executeDataQueryRequest);
@@ -362,7 +368,7 @@ namespace IO.Ably.MessageEncoders
             ProtocolMessage protocolMessage;
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-            if (IsMsgPack() && Defaults.MsgPackEnabled)
+            if (IsMsgPack() && Config.MsgPackEnabled)
             {
 #if MSGPACK
                 protocolMessage = (ProtocolMessage) MsgPackHelper.Deserialise(data.Data, typeof(ProtocolMessage));
@@ -393,20 +399,14 @@ namespace IO.Ably.MessageEncoders
         {
             var options = channelOptions ?? new ChannelOptions();
             var result = Result.Ok();
-            if (protocolMessage.Messages != null)
+            foreach (var message in protocolMessage.Messages)
             {
-                foreach (var message in protocolMessage.Messages)
-                {
-                    result = Result.Combine(result, EncodePayload(message, options));
-                }
+                result = Result.Combine(result, EncodePayload(message, options));
             }
 
-            if (protocolMessage.Presence != null)
+            foreach (var presence in protocolMessage.Presence)
             {
-                foreach (var presence in protocolMessage.Presence)
-                {
-                    result = Result.Combine(result, EncodePayload(presence, options));
-                }
+                result = Result.Combine(result, EncodePayload(presence, options));
             }
 
             return result;
@@ -458,7 +458,7 @@ namespace IO.Ably.MessageEncoders
             RealtimeTransportData data;
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-            if (IsMsgPack() && Defaults.MsgPackEnabled)
+            if (IsMsgPack() && Config.MsgPackEnabled)
             {
 #if MSGPACK
                 var bytes = MsgPackHelper.Serialise(protocolMessage);

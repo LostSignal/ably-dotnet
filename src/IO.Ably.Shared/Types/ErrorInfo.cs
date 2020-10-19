@@ -8,7 +8,7 @@ using Newtonsoft.Json.Linq;
 namespace IO.Ably
 {
     /// <summary>
-    /// An exception type encapsulating error information containing an Ably specific error code and generic status code.
+    /// An exception type encapsulating error informaiton containing an Ably specific error code and generic status code
     /// </summary>
     public class ErrorInfo
     {
@@ -21,7 +21,6 @@ namespace IO.Ably
         internal static readonly ErrorInfo ReasonNeverConnected = new ErrorInfo("Unable to establish connection", 80002);
         internal static readonly ErrorInfo ReasonTimeout = new ErrorInfo("Unable to establish connection", 80014);
         internal static readonly ErrorInfo ReasonUnknown = new ErrorInfo("Unknown error", 50000, HttpStatusCode.InternalServerError);
-        internal static readonly ErrorInfo NonRenewableToken = new ErrorInfo("The library was initialized with a token without any way to renew the token when it expires (no authUrl, authCallback, or key). See https://help.ably.io/error/40171 for help", 40171, HttpStatusCode.Unauthorized);
 
         internal const string CodePropertyName = "code";
         internal const string StatusCodePropertyName = "statusCode";
@@ -29,19 +28,19 @@ namespace IO.Ably
         internal const string HrefBase = "https://help.ably.io/error/";
 
         /// <summary>
-        /// Ably error code (see https://github.com/ably/ably-common/blob/master/protocol/errors.json).
+        /// Ably error code (see https://github.com/ably/ably-common/blob/master/protocol/errors.json)
         /// </summary>
         [JsonProperty("code")]
         public int Code { get; set; }
 
         /// <summary>
-        /// The http status code corresponding to this error.
+        /// The http status code corresponding to this error
         /// </summary>
         [JsonProperty("statusCode")]
         public HttpStatusCode? StatusCode { get; set; }
 
         /// <summary>
-        /// Additional reason information, where available.
+        /// Additional reason information, where available
         /// </summary>
         [JsonProperty("message")]
         public string Message { get; set; }
@@ -53,81 +52,51 @@ namespace IO.Ably
         public string Href { get; set; }
 
         /// <summary>
-        /// Additional cause information, where available.
+        /// Additional cause information, where available
         /// </summary>
         [JsonProperty("cause")]
         public ErrorInfo Cause { get; set; }
 
         /// <summary>
-        /// Is this Error as result of a 401 Unauthorized HTTP response.
+        /// Is this Error as result of a 401 Unauthorized HTTP response
         /// </summary>
         public bool IsUnAuthorizedError => StatusCode.HasValue &&
                                            StatusCode.Value == HttpStatusCode.Unauthorized;
 
         /// <summary>
-        /// Is this Error as result of a 403 Forbidden HTTP response.
+        /// Is this Error as result of a 403 Forbidden HTTP response
         /// </summary>
         public bool IsForbiddenError => StatusCode.HasValue &&
                                            StatusCode.Value == HttpStatusCode.Forbidden;
 
-        /// <summary>
-        /// Is the error Code a token error code.
-        /// </summary>
         public bool IsTokenError => Code >= Defaults.TokenErrorCodesRangeStart &&
                                     Code <= Defaults.TokenErrorCodesRangeEnd;
 
         /// <summary>
-        /// Get or Sets the InnerException.
+        /// Get or Sets the InnerException
         /// </summary>
         public Exception InnerException { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ErrorInfo"/> class.
         /// </summary>
-        public ErrorInfo()
-        {
-        }
+        public ErrorInfo() { }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ErrorInfo"/> class.
-        /// </summary>
-        /// <param name="reason">error reason.</param>
         public ErrorInfo(string reason)
             : this(reason, 0)
         {
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ErrorInfo"/> class.
-        /// </summary>
-        /// <param name="reason">error reason.</param>
-        /// <param name="code">error code.</param>
         public ErrorInfo(string reason, int code)
             : this(reason, code, null, null, null)
         {
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ErrorInfo"/> class.
-        /// </summary>
-        /// <param name="reason">error reason.</param>
-        /// <param name="code">error code.</param>
-        /// <param name="statusCode">optional, http status code.</param>
-        /// <param name="innerException">optional, InnerException.</param>
         public ErrorInfo(string reason, int code, HttpStatusCode? statusCode, Exception innerException)
             : this(reason, code, statusCode, null, null, innerException)
         {
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ErrorInfo"/> class.
-        /// </summary>
-        /// <param name="reason">error reason.</param>
-        /// <param name="code">error code.</param>
-        /// <param name="statusCode">optional, http status code.</param>
-        /// <param name="href">optional, documentation url.</param>
-        /// <param name="cause">optional, another ErrorInfo that caused this one.</param>
-        /// <param name="innerException">optional, InnerException.</param>
         public ErrorInfo(string reason, int code, HttpStatusCode? statusCode = null, string href = null, ErrorInfo cause = null, Exception innerException = null)
         {
             Code = code;
@@ -146,7 +115,6 @@ namespace IO.Ably
             InnerException = innerException;
         }
 
-        /// <inheritdoc/>
         public override string ToString()
         {
             StringBuilder result = new StringBuilder("[ErrorInfo ");
@@ -209,19 +177,11 @@ namespace IO.Ably
             return new ErrorInfo(reason.IsEmpty() ? "Unknown error" : reason, errorCode, response.StatusCode);
         }
 
-        /// <summary>
-        /// Creates an <see cref="AblyException"/> containing the current Error.
-        /// </summary>
-        /// <returns>AblyException.</returns>
         public Exception AsException()
         {
             return new AblyException(this);
         }
 
-        /// <summary>
-        /// Checks if the current error's status code is retryable.
-        /// </summary>
-        /// <returns>true / false.</returns>
         public bool IsRetryableStatusCode()
         {
             return StatusCode.HasValue && IsRetryableStatusCode(StatusCode.Value);
@@ -233,7 +193,7 @@ namespace IO.Ably
         }
 
         /// <summary>
-        /// Spec: TI5.
+        /// Spec: TI5
         /// </summary>
         private string LogMessage()
         {
@@ -256,11 +216,6 @@ namespace IO.Ably
             return logMessage;
         }
 
-        /// <summary>
-        /// Is statusCode considered retryable.
-        /// </summary>
-        /// <param name="statusCode">status code to check.</param>
-        /// <returns>true / false.</returns>
         public static bool IsRetryableStatusCode(HttpStatusCode statusCode)
         {
             return statusCode >= (HttpStatusCode)500 && statusCode <= (HttpStatusCode)504;
